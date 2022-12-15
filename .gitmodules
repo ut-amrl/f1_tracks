@@ -1,0 +1,3 @@
+[submodule "racetrack-database"]
+	path = racetrack-database
+	url = git@github.com:TUMFTM/racetrack-database.git
