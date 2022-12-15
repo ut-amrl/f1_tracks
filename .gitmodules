@@ -1,3 +1,6 @@
 [submodule "racetrack-database"]
 	path = racetrack-database
 	url = git@github.com:TUMFTM/racetrack-database.git
+[submodule "src/shared"]
+	path = src/shared
+	url = git@github.com:ut-amrl/amrl_shared_lib.git
