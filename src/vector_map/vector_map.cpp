@@ -450,8 +450,8 @@ void VectorMap::GetPredictedScan(const Vector2f& loc,
                                  float angle_max,
                                  int num_rays,
                                  vector<float>* scan_ptr) {
-  static CumulativeFunctionTimer function_timer_(__FUNCTION__);
-  CumulativeFunctionTimer::Invocation invoke(&function_timer_);
+  // static CumulativeFunctionTimer function_timer_(__FUNCTION__);
+  // CumulativeFunctionTimer::Invocation invoke(&function_timer_);
   vector<float>& scan = *scan_ptr;
   vector<Line2f> raycast;
   SceneRender(loc, range_max, angle_min, angle_max, &raycast);
