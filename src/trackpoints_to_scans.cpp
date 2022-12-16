@@ -7,27 +7,29 @@
 #include <eigen3/Eigen/Dense>
 #include <filesystem>
 #include <fstream>
-#include <opencv4/opencv2/core.hpp>
+#include <iomanip>
 #include <vector>
 
 #include "vector_map/vector_map.h"
 
 DEFINE_string(racetracks_path, "racetrack-database/tracks",
               "path to the database of racetrack csv files");
+DEFINE_string(scans_path, "scans", "path to output scan data");
 DEFINE_bool(export_vectormaps, true, "whether to export vectormaps");
 DEFINE_string(vectormap_path, "vectormaps",
               "path to output vectormaps of racetracks");
 
 using Eigen::Vector2f;
+using Eigen::Vector3f;
 using std::vector;
 using vector_map::VectorMap;
 
 const float FACTOR = 20;
-// const float ANGLE_MIN = -2.25147461891;
-// const float ANGLE_MAX = 2.25147461891;
-// const float RANGE_MIN = 0.019999999553;
-// const float RANGE_MAX = 30.0;
-// const int NUM_SCANS = 1080;
+const float ANGLE_MIN = -2.25147461891;
+const float ANGLE_MAX = 2.25147461891;
+const float RANGE_MIN = 0.019999999553;
+const float RANGE_MAX = 30.0;
+const int NUM_SCANS = 1080;
 
 vector<float> split(const std::string& line) {
   vector<float> values;
@@ -125,9 +127,35 @@ void export_vectormap(const VectorMap& vmap, const std::string& filename) {
     }
   }
   file << "]";
+  file.close();
 }
 
-void export_scans() {}
+void export_scans(const vector<std::pair<Vector3f, vector<float>>>& scans,
+                  const std::string& filename) {
+  std::ofstream file;
+  file.open(filename);
+
+  // add first line as column names
+  file << "x, y, theta, ";
+  for (int i = 0; i < NUM_SCANS; i++) {
+    file << "scan" << std::setfill('0') << std::setw(4) << i;
+    if (i != NUM_SCANS - 1) file << ", ";
+  }
+  file << "\n";
+
+  for (auto p : scans) {
+    Vector3f loc = p.first;
+    vector<float> scan = p.second;
+    file << loc.x() << ", " << loc.y() << ", " << loc.z() << ", ";
+    for (int i = 0; i < NUM_SCANS; i++) {
+      file << scan[i];
+      if (i != NUM_SCANS - 1) file << ", ";
+    }
+    file << "\n";
+  }
+
+  file.close();
+}
 
 int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, false);
@@ -142,6 +170,7 @@ int main(int argc, char** argv) {
   //   - store location + predicted scans as element of data structure
   // export all of this to a csv (one csv per track?)
 
+  // every iteration of this loop is independent -> very parallelizable
   for (auto& track_file_entry : boost::make_iterator_range(
            boost::filesystem::directory_iterator(FLAGS_racetracks_path), {})) {
     auto track_path = track_file_entry.path();
@@ -163,25 +192,30 @@ int main(int argc, char** argv) {
       export_vectormap(map, vmap_filename);
     }
 
-    //   vector<std::pair<Vector2f, vector<float>>> track_scans;
-    //   for (size_t i = 0; i < centerline.size(); i++) {
-    //     vector<float> scan;
-    //     float ang_d;
-    //     if (i == 0) {
-    //       ang_d = atan2(centerline[i + 1].y() - centerline.back().y(),
-    //                     centerline[i + 1].x() - centerline.back().x());
-    //     } else if (i == centerline.size() - 1) {
-    //       ang_d = atan2(centerline.front().y() - centerline[i - 1].y(),
-    //                     centerline.front().x() - centerline[i - 1].x());
-    //     } else {
-    //       ang_d = atan2(centerline[i + 1].y() - centerline[i - 1].y(),
-    //                     centerline[i + 1].x() - centerline[i - 1].x());
-    //     }
-    //     map.GetPredictedScan(centerline[i], RANGE_MIN, RANGE_MAX, ANGLE_MIN +
-    //     ang_d,
-    //                          ANGLE_MAX + ang_d, NUM_SCANS, &scan);
-    //     track_scans.push_back({centerline[i], scan});
-    //   }
+    vector<std::pair<Vector3f, vector<float>>> track_scans;
+    for (size_t i = 0; i < centerline.size(); i++) {
+      vector<float> scan;
+      float ang_d;
+      if (i == 0) {
+        ang_d = atan2(centerline[i + 1].y() - centerline.back().y(),
+                      centerline[i + 1].x() - centerline.back().x());
+      } else if (i == centerline.size() - 1) {
+        ang_d = atan2(centerline.front().y() - centerline[i - 1].y(),
+                      centerline.front().x() - centerline[i - 1].x());
+      } else {
+        ang_d = atan2(centerline[i + 1].y() - centerline[i - 1].y(),
+                      centerline[i + 1].x() - centerline[i - 1].x());
+      }
+      map.GetPredictedScan(centerline[i], RANGE_MIN, RANGE_MAX,
+                           ANGLE_MIN + ang_d, ANGLE_MAX + ang_d, NUM_SCANS,
+                           &scan);
+      track_scans.push_back(
+          {{centerline[i].x(), centerline[i].y(), ang_d}, scan});
+    }
+    std::string scans_filename =
+        FLAGS_scans_path + "/" + track_path.stem().string() + ".scans.csv";
+    LOG(INFO) << "Saving " << scans_filename;
+    export_scans(track_scans, scans_filename);
   }
 
   return 0;

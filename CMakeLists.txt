@@ -23,18 +23,16 @@ message(STATUS "CXX Flags: ${CMAKE_CXX_FLAGS}")
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(gflags REQUIRED)
-find_package(OpenCV REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(glog REQUIRED libglog)
 find_package(Boost REQUIRED COMPONENTS filesystem system)
 
 add_subdirectory(src/shared)
 include_directories(src/shared)
-include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories(${glog_INCLUDE_DIRS})
 include_directories(${Boost_INCLUDE_DIRS})
 
-set(libs Eigen3::Eigen amrl_shared_lib gflags ${OpenCV_LIBS} ${glog_LIBRARIES} ${Boost_LIBRARIES})
+set(libs Eigen3::Eigen amrl_shared_lib gflags ${glog_LIBRARIES} ${Boost_LIBRARIES})
 
 add_executable(trackpoints_to_scans src/trackpoints_to_scans.cpp
                                     src/vector_map/vector_map.cpp)
